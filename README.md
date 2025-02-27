@@ -1,5 +1,7 @@
 # README
 
-Allow for quick searching of JASS API hosted at https://github.com/lep/jassdoclep/jassdoc for documentation and comments about JASS functions.
+An extension for searching JASS API in VS Code for documentation, comments, and annotation about JASS functions.
 
-Displays data related to a function in vscode webview and highlights function name, types, and annotations.
+Jass docs is hosted at https://github.com/lep/jassdoclep/jassdoc
+
+Displays data in a VS Code webview and highlights function name, types, and annotations.
