@@ -1,7 +1,7 @@
 {
   "name": "jass-api-search",
   "displayName": "jass-api-search",
-  "description": "Fuzzy search for the jassdoc repo",
+  "description": "API search for Blizzard JASS documentation",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.97.0"
@@ -23,6 +23,7 @@
       }
     ]
   },
+  "publisher": "toeneeoh",
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
