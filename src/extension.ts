@@ -85,9 +85,9 @@ async function fuzzySearch() {
 function showFunctionDetails(func: { name: string; signature: string; description: string }) {
     const panel = vscode.window.createWebviewPanel(
         "functionDetails",
-        `JASS Function: ${func.name}`,
+        `${func.name}`,
         vscode.ViewColumn.Beside,
-        { enableScripts: false } // Disable scripts to avoid worker issues
+        { enableScripts: false }
     );
 
     panel.webview.html = `
@@ -98,8 +98,22 @@ function showFunctionDetails(func: { name: string; signature: string; descriptio
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>${func.name}</title>
             <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+                body {
+                    font-family: Arial, sans-serif;
+                    padding: 20px;
+                    background-color: var(--vscode-editor-background);
+                    color: var(--vscode-editor-foreground);
+                }
+                pre {
+                    background: var(--vscode-editorWidget-background);
+                    padding: 10px;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                    color: var(--vscode-editor-foreground);
+                }
+                h2, h3 {
+                    color: var(--vscode-editor-foreground);
+                }
             </style>
         </head>
         <body>
@@ -111,7 +125,6 @@ function showFunctionDetails(func: { name: string; signature: string; descriptio
         </html>
     `;
 }
-
 
 export function activate(context: vscode.ExtensionContext) {
     const disposable = vscode.commands.registerCommand("jass-api-search.search", fuzzySearch);
