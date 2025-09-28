@@ -3,75 +3,92 @@ import axios from "axios";
 import GITHUB_URLS from "./config";
 
 async function fuzzySearch() {
+    const qp = vscode.window.createQuickPick<vscode.QuickPickItem>();
+    qp.title = "JASS API Search";
+    qp.placeholder = "Type to search";
+    qp.matchOnDescription = true;
+    qp.matchOnDetail = true;
+
+    qp.busy = true;
+    qp.items = [{ label: "Loading...", description: "Fetching documentation", detail: "N/A" }];
+    qp.show();
+
     const Fuse = (await import("fuse.js")).default;
 
-    /**
-     * Fetches all API documentation files from GitHub.
-     */
-    async function fetchApiDocumentation(): Promise<string[]> {
-        try {
-            const responses = await Promise.all(GITHUB_URLS.map((url) => axios.get(url)));
-            return responses.map((res) => res.data);
-        } catch (error) {
-            vscode.window.showErrorMessage("Failed to fetch API data from GitHub.");
-            return [];
-        }
+    // fetch + parse in the background
+    let apiData: { name: string; signature: string; description: string }[] = [];
+    try {
+        const responses = await Promise.all(GITHUB_URLS.map((url) => axios.get(url)));
+        const texts = responses.map((r) => r.data as string);
+
+        apiData = (function parseApiDocumentation(texts: string[]) {
+            const combinedText = texts.join("\n");
+            const matches = combinedText.match(/\/\*\*[\s\S]*?\*\/\s*\nnative\s+(\w+)\s+takes\s+([\s\S]*?)\s+returns\s+(\w+)/g);
+            if (!matches) return [];
+            return matches.map((match) => {
+                const name = match.match(/native\s+(\w+)/)?.[1] || "Unknown Function";
+                const parameters = match.match(/takes\s+([\s\S]*?)\s+returns/)?.[1]?.trim() || "nothing";
+                const returnType = match.match(/returns\s+(\w+)/)?.[1] || "nothing";
+                return {
+                    name,
+                    signature: `${name}(${parameters}): ${returnType}`,
+                    description: match,
+                };
+            });
+        })(texts);
+    } catch (err) {
+        qp.busy = false;
+        qp.items = [{ label: "Failed to fetch api data", description: "Check network / urls", detail: String(err) }];
+        return; // leave quickpick up so user can read the error
     }
 
-    /**
-     * Extracts function signatures and comments from the API documentation.
-     */
-    function parseApiDocumentation(texts: string[]): { name: string; signature: string; description: string }[] {
-        const combinedText = texts.join("\n");
-        const matches = combinedText.match(/\/\*\*[\s\S]*?\*\/\s*\nnative\s+(\w+)\s+takes\s+([\s\S]*?)\s+returns\s+(\w+)/g);
-
-        if (!matches) return [];
-
-        return matches.map((match) => {
-            const name = match.match(/native\s+(\w+)/)?.[1] || "Unknown Function";
-            const parameters = match.match(/takes\s+([\s\S]*?)\s+returns/)?.[1]?.trim() || "nothing";
-            const returnType = match.match(/returns\s+(\w+)/)?.[1] || "nothing";
-
-            return {
-                name,
-                signature: `${name}(${parameters}): ${returnType}`,
-                description: match,
-            };
-        });
-    }
-
-    const apiTexts = await fetchApiDocumentation();
-    if (apiTexts.length === 0) return;
-
-    const apiData = parseApiDocumentation(apiTexts);
     if (apiData.length === 0) {
-        vscode.window.showInformationMessage("No functions found.");
+        qp.busy = false;
+        qp.items = [{ label: "No functions found", description: "Api docs are empty" }];
         return;
     }
 
-    const fuse = new Fuse(apiData, { keys: ["name", "signature", "description"], threshold: 0.3 });
+    // build fuse index
+    const fuse = new Fuse(apiData, {
+        keys: ["name", "signature", "description"],
+        threshold: 0.3,
+        ignoreLocation: true,
+        includeScore: true,
+        minMatchCharLength: 2,
+    });
 
-    const userInput = await vscode.window.showInputBox({ placeHolder: "Search API..." });
-    if (!userInput) return;
+    // convert current dataset -> quickpick items
+    const toItems = (rows: typeof apiData): vscode.QuickPickItem[] =>
+        rows.slice(0, 200).map((r) => ({
+            label: r.name,
+            description: r.signature,
+            detail: undefined,
+        }));
 
-    const results = fuse.search(userInput).map((res) => res.item);
+    // show everything before typing
+    qp.busy = false;
+    qp.items = toItems(apiData);
 
-    if (results.length === 0) {
-        vscode.window.showInformationMessage("No matching functions found.");
-        return;
-    }
-
-    const selection = await vscode.window.showQuickPick(
-        results.map((res) => `${res.name}: ${res.signature}`),
-        { placeHolder: "Select a function" }
-    );
-
-    if (selection) {
-        const selectedItem = results.find((res) => selection.startsWith(res.name));
-        if (selectedItem) {
-            showFunctionDetails(selectedItem);
+    // live filtering as user types
+    qp.onDidChangeValue((value) => {
+        if (!value.trim()) {
+            qp.items = toItems(apiData);
+            return;
         }
-    }
+        const results = fuse.search(value).map((r) => r.item);
+        qp.items = results.length ? toItems(results) : [{ label: "no matches", description: "try different terms" }];
+    });
+
+    // open details on selection
+    qp.onDidChangeSelection((sel) => {
+        const picked = sel?.[0];
+        if (!picked) return;
+        const chosen = apiData.find((r) => r.name === picked.label);
+        if (chosen) showFunctionDetails(chosen);
+        qp.hide();
+    });
+
+    qp.onDidHide(() => qp.dispose());
 }
 
 /**
