@@ -2,7 +2,7 @@
   "name": "jass-api-search",
   "displayName": "jass-api-search",
   "description": "API search for Blizzard JASS documentation",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.97.0"
   },
