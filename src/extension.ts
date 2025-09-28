@@ -1,21 +1,16 @@
 import * as vscode from "vscode";
 import axios from "axios";
+import GITHUB_URLS from "./config";
 
 async function fuzzySearch() {
     const Fuse = (await import("fuse.js")).default;
-
-    const GITHUB_FILES = [
-        "https://raw.githubusercontent.com/lep/jassdoc/master/Blizzard.j",
-        "https://raw.githubusercontent.com/lep/jassdoc/master/common.j",
-        "https://raw.githubusercontent.com/lep/jassdoc/master/common.ai",
-    ];
 
     /**
      * Fetches all API documentation files from GitHub.
      */
     async function fetchApiDocumentation(): Promise<string[]> {
         try {
-            const responses = await Promise.all(GITHUB_FILES.map((url) => axios.get(url)));
+            const responses = await Promise.all(GITHUB_URLS.map((url) => axios.get(url)));
             return responses.map((res) => res.data);
         } catch (error) {
             vscode.window.showErrorMessage("Failed to fetch API data from GitHub.");
