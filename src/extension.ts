@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import axios from "axios";
-import GITHUB_URLS from "./config";
+import { GITHUB_URLS } from "./config";
 
 async function fuzzySearch() {
     const qp = vscode.window.createQuickPick<vscode.QuickPickItem>();
